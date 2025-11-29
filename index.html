@@ -195,6 +195,49 @@
         .fire.on {
             opacity: 1;
         }
+        /* --- Stove Control Knob --- */
+        .stove-knob {
+            position: absolute;
+            bottom: 5px;
+            right: 15px;
+            width: 35px;
+            height: 35px;
+            background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+            border-radius: 50%;
+            border: 3px solid #374151;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3), inset 0 -2px 3px rgba(0, 0, 0, 0.2);
+            z-index: 20;
+        }
+        .stove-knob::before {
+            content: '';
+            width: 3px;
+            height: 12px;
+            background: #ef4444;
+            position: absolute;
+            top: 3px;
+            border-radius: 2px;
+        }
+        .stove-knob:hover {
+            transform: scale(1.1);
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4), inset 0 -2px 3px rgba(0, 0, 0, 0.2);
+        }
+        .stove-knob.active {
+            transform: rotate(90deg);
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        }
+        .stove-knob.active::before {
+            background: #fef3c7;
+        }
+        .stove-knob.disabled {
+            cursor: not-allowed;
+            opacity: 0.4;
+            pointer-events: none;
+        }
     </style>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -245,7 +288,7 @@
         };
 
         // --- Game Constants ---
-        const COOK_TIME_IDEAL = 10; // 最佳烹飪時間 (秒)
+        const COOK_TIME_IDEAL = 7; // 最佳烹飪時間 (秒)
         const COOK_TIME_MAX = 20; // 燒焦時間 (秒)
         const TOTAL_TIME_LIMIT = 60; // 總時限 (秒)
 
@@ -272,6 +315,7 @@
         const fireElement = document.getElementById('fire-element');
         const waterElement = document.getElementById('water-element');
         const noodlesElement = document.getElementById('noodles-element');
+        const stoveKnob = document.getElementById('stove-knob');
         const waterKettle = document.getElementById('water-kettle');
         const noodlePacket = document.getElementById('noodle-packet');
         const seasoningPacket = document.getElementById('seasoning-packet');
@@ -287,6 +331,7 @@
 
             // Update item accessibility/appearance
             waterKettle.classList.toggle('disabled', newStep !== 1);
+            stoveKnob.classList.toggle('disabled', newStep !== 2);
             noodlePacket.classList.toggle('disabled', newStep !== 3);
             seasoningPacket.classList.toggle('disabled', newStep !== 4);
             ramenBowl.classList.toggle('disabled', newStep < 5);
@@ -342,6 +387,7 @@
         function resetPotForNextRamen() {
             // Reset pot visuals
             fireElement.classList.remove('on');
+            stoveKnob.classList.remove('active');
             waterElement.classList.remove('boiling', 'filled');
             noodlesElement.classList.remove('in-pot', 'cooked', 'burnt');
             bowlContent.style.opacity = '0'; // Clear the serving bowl content (visual only)
@@ -350,7 +396,7 @@
             cookTimeElapsed = 0;
             
             // Reset interactions
-            potStove.onclick = null;
+            stoveKnob.onclick = null;
             ramenBowl.onclick = null;
             
             // Go back to step 1 (Add Water)
@@ -413,8 +459,8 @@
             if (currentStep === 1) {
                 // Step 1: Add Water
                 waterElement.classList.add('filled');
-                updateStepStatus(2, '水加好了！現在點擊鍋子開啟爐火煮水！', 'success');
-                potStove.onclick = startBoiling; // Enable click to boil
+                updateStepStatus(2, '水加好了！現在點擊爐灶開關（紅色旋鈕）開啟爐火煮水！', 'success');
+                stoveKnob.onclick = startBoiling; // Enable click to boil
             } else {
                 handleServeOrError('wrong_order');
             }
@@ -424,9 +470,10 @@
             if (currentStep === 2) {
                 // Step 2: Start Boiling
                 fireElement.classList.add('on');
+                stoveKnob.classList.add('active');
                 waterElement.classList.add('boiling');
                 updateStepStatus(3, '水滾了！快把泡麵拖曳到鍋子裡！', 'success'); 
-                potStove.onclick = null; // Disable click after boiling starts
+                stoveKnob.onclick = null; // Disable click after boiling starts
             } else {
                  showNotification('錯誤操作！水已經在煮了。', -10);
             }
@@ -581,6 +628,7 @@
                 <div class="stove">
                     <div class="burner"></div>
                     <div id="fire-element" class="fire"></div>
+                    <div id="stove-knob" class="stove-knob disabled" title="點擊開啟爐火"></div>
                 </div>
                 <div class="pot">
                     <div class="pot-handle pot-handle-left"></div>
