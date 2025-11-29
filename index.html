@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>阿Sue泡麵大挑戰 (快手版)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f7f7;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .game-container {
+            width: 100%;
+            max-width: 900px;
+            background: #ffffff;
+            border-radius: 1.5rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            overflow: hidden;
+            border: 4px solid #f97316; /* Orange border for game feel */
+        }
+        /* --- Kitchen Background Setup --- */
+        .kitchen-area {
+            background-color: transparent; 
+            padding: 0;
+            min-height: 450px;
+            position: relative;
+            overflow: hidden;
+        }
+        .kitchen-wall {
+            height: 250px;
+            background-color: #e0f2f1; /* Light cyan wall */
+            /* Simple tile pattern using gradient */
+            background-image: linear-gradient(45deg, #d3e9e7 25%, transparent 25%), linear-gradient(-45deg, #d3e9e7 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #d3e9e7 75%), linear-gradient(-45deg, transparent 75%, #d3e9e7 75%);
+            background-size: 50px 50px;
+            background-position: 0 0, 0 25px, 25px -25px, -25px 25px;
+            border-bottom: 10px solid #b3a89a; /* Wall-to-counter trim */
+        }
+        .kitchen-counter {
+            height: 200px; /* Counter height */
+            background: linear-gradient(to bottom, #795548, #4e342e); /* Dark wood look */
+            position: relative;
+            z-index: 5;
+            padding: 20px 40px; /* Horizontal padding to push items away from center */
+            display: flex;
+            justify-content: space-between; /* Ensures center is clear */
+            align-items: flex-end; 
+        }
+        /* --- Tool and Pot Styling --- */
+        .tool {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: grab;
+            transition: transform 0.1s;
+            z-index: 15; 
+            margin-bottom: 20px; 
+            width: 100px; /* Fixed width for better layout control */
+        }
+        .tool.disabled {
+            cursor: not-allowed;
+            opacity: 0.5;
+            pointer-events: none;
+        }
+        .tool:hover:not(.disabled) {
+            transform: scale(1.05);
+        }
+        .pot-on-stove {
+            position: absolute;
+            bottom: 50px; 
+            left: 50%;
+            transform: translateX(-50%);
+            width: 180px; 
+            height: 180px;
+            z-index: 10;
+        }
+        .stove {
+            background: #374151;
+            width: 180px;
+            height: 30px;
+            border-radius: 0 0 10px 10px;
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            transform: none;
+        }
+        .burner {
+            left: 40px;
+        }
+        .pot {
+            width: 100px;
+            height: 60px;
+            background: #e5e7eb;
+            border-radius: 40px 40px 10px 10px;
+            position: absolute;
+            top: 10px; 
+            left: 40px;
+            border: 3px solid #d1d5db;
+        }
+        .pot-handle {
+            position: absolute;
+            width: 20px;
+            height: 5px;
+            background: #9ca3af;
+            top: 35px; 
+            border-radius: 2px;
+        }
+        .pot-handle-left { left: 15px; }
+        .pot-handle-right { right: 15px; }
+        .water {
+            background: #42a5f5;
+            height: 0; /* Starts empty */
+            width: 90px;
+            position: absolute;
+            bottom: 0;
+            left: 5px;
+            border-radius: 35px 35px 0 0;
+            transition: all 0.5s ease-in-out, background-color 0.5s;
+        }
+        .water.filled {
+            height: 25px; /* Fill state */
+            top: 5px;
+        }
+        .water.boiling {
+            background: #00bcd4;
+            animation: boil 0.5s infinite alternate;
+        }
+        @keyframes boil {
+            from { box-shadow: 0 0 5px rgba(0, 0, 0, 0.2) inset; }
+            to { box-shadow: 0 0 15px rgba(66, 165, 245, 0.5) inset; }
+        }
+        .noodles {
+            background: #ffc107;
+            height: 10px;
+            width: 70px;
+            position: absolute;
+            top: 10px;
+            left: 15px;
+            border-radius: 5px;
+            opacity: 0;
+            transition: opacity 0.5s, background-color 2s ease-out; /* Added background-color transition */
+        }
+        .noodles.in-pot { opacity: 1; }
+        .noodles.cooked { background: #f0e68c; /* Lighter yellow/softened look */ }
+        .noodles.burnt { background: #333; /* Dark brown/black for burnt */ }
+
+        .ramen-bowl {
+            width: 120px;
+            height: 80px;
+            background: #ffffff;
+            border: 4px solid #f97316;
+            border-radius: 0 0 50% 50%;
+            position: relative;
+            z-index: 5;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        /* --- 修正: 調整內容物的位置和大小來模擬深度 --- */
+        .ramen-bowl-content {
+            height: 50px; /* 內容物高度略低於碗高 */
+            width: 90%; /* 內容物寬度略窄於碗口 */
+            left: 5%; /* 內容物置中 */
+            background: #ffe082;
+            border-radius: 0 0 50% 50%;
+            position: absolute;
+            top: 10px; /* 從頂部向下移動，露出碗邊緣 */
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+        /* ------------------------------------------- */
+
+        .ramen-bowl:hover:not(.disabled) {
+            transform: translateY(-5px);
+        }
+        .fire {
+            position: absolute;
+            bottom: 25px; 
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 20px;
+            background: linear-gradient(to top, #ff6b6b, #ffda79);
+            border-radius: 50%;
+            box-shadow: 0 0 10px #ff6b6b;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .fire.on {
+            opacity: 1;
+        }
+    </style>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Firestore Setup - Mandatory boilerplate
+        setLogLevel('debug');
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        let firebaseApp, db, auth, userId;
+        let isAuthReady = false;
+
+        const initFirebase = async () => {
+            try {
+                const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+                if (Object.keys(firebaseConfig).length === 0) {
+                    console.error("Firebase config not found.");
+                    return;
+                }
+                firebaseApp = initializeApp(firebaseConfig);
+                db = getFirestore(firebaseApp);
+                auth = getAuth(firebaseApp);
+
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        console.log("Authenticated user ID:", userId);
+                    } else {
+                        try {
+                            // If no initial token, sign in anonymously
+                            if (typeof __initial_auth_token !== 'undefined') {
+                                await signInWithCustomToken(auth, __initial_auth_token);
+                            } else {
+                                await signInAnonymously(auth);
+                            }
+                        } catch (error) {
+                            console.error("Authentication failed:", error);
+                        }
+                    }
+                    isAuthReady = true;
+                    // Update user ID display once ready
+                    document.getElementById('user-id-display').textContent = `User ID: ${userId || 'N/A'}`;
+                });
+            } catch (e) {
+                console.error("Error during Firebase initialization:", e);
+            }
+        };
+
+        // --- Game Constants ---
+        const COOK_TIME_IDEAL = 10; // 最佳烹飪時間 (秒)
+        const COOK_TIME_MAX = 20; // 燒焦時間 (秒)
+        const TOTAL_TIME_LIMIT = 60; // 總時限 (秒)
+
+        // --- Game State Variables ---
+        let gameStatus = 'IDLE'; // IDLE, COOKING, GAME_OVER
+        // 步驟: 0: 等待開始, 1: 加水, 2: 煮水, 3: 加麵, 4: 加調味粉 (開始計時), 5: 等待上菜
+        let currentStep = 0; 
+        let timerInterval;
+        let totalTimeElapsed = 0;
+        let cookTimeElapsed = 0;
+        let totalScore = 0; // 總累積得分
+
+        // --- DOM Elements ---
+        const startButton = document.getElementById('start-game-btn'); 
+        const timerDisplay = document.getElementById('timer-display');
+        const scoreDisplay = document.getElementById('score-display');
+        const statusMessage = document.getElementById('status-message');
+        const feedbackModal = document.getElementById('feedback-modal');
+        const modalMessage = document.getElementById('modal-message');
+        const modalScore = document.getElementById('modal-score');
+
+        // Kitchen Items
+        const potStove = document.getElementById('pot-on-stove');
+        const fireElement = document.getElementById('fire-element');
+        const waterElement = document.getElementById('water-element');
+        const noodlesElement = document.getElementById('noodles-element');
+        const waterKettle = document.getElementById('water-kettle');
+        const noodlePacket = document.getElementById('noodle-packet');
+        const seasoningPacket = document.getElementById('seasoning-packet');
+        const ramenBowl = document.getElementById('ramen-bowl');
+        const bowlContent = document.getElementById('bowl-content');
+
+        // --- Game Actions ---
+
+        function updateStepStatus(newStep, message, type = 'info') {
+            currentStep = newStep;
+            statusMessage.textContent = message;
+            statusMessage.className = `p-3 font-semibold rounded-lg text-center ${type === 'success' ? 'bg-green-100 text-green-700' : type === 'error' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`;
+
+            // Update item accessibility/appearance
+            waterKettle.classList.toggle('disabled', newStep !== 1);
+            noodlePacket.classList.toggle('disabled', newStep !== 3);
+            seasoningPacket.classList.toggle('disabled', newStep !== 4);
+            ramenBowl.classList.toggle('disabled', newStep < 5);
+        }
+
+        function setupDragAndDrop() {
+            const draggableItems = [waterKettle, noodlePacket, seasoningPacket];
+            const dropTarget = potStove; 
+
+            // 1. Draggable Item Setup
+            draggableItems.forEach(item => {
+                item.onclick = null; 
+                
+                item.addEventListener('dragstart', (e) => {
+                    if (item.classList.contains('disabled')) {
+                        e.preventDefault(); 
+                        return;
+                    }
+                    e.dataTransfer.setData('text/plain', item.id);
+                    e.dataTransfer.effectAllowed = 'move';
+                    item.classList.add('opacity-50', 'scale-95');
+                });
+                
+                item.addEventListener('dragend', (e) => {
+                    item.classList.remove('opacity-50', 'scale-95');
+                });
+            });
+
+            // 2. Drop Target Setup (The Pot Area)
+            dropTarget.addEventListener('dragover', (e) => {
+                e.preventDefault(); 
+                e.dataTransfer.dropEffect = 'move';
+            });
+
+            dropTarget.addEventListener('drop', (e) => {
+                e.preventDefault();
+                const data = e.dataTransfer.getData('text/plain');
+                
+                if (gameStatus !== 'COOKING') return;
+
+                if (data === 'water-kettle') {
+                    addWater();
+                } else if (data === 'noodle-packet') {
+                    addNoodles();
+                } else if (data === 'seasoning-packet') {
+                    addSeasoning();
+                } else {
+                    showNotification('錯誤操作！這不是煮泡麵的材料！', -20);
+                }
+            });
+        }
+        
+        function resetPotForNextRamen() {
+            // Reset pot visuals
+            fireElement.classList.remove('on');
+            waterElement.classList.remove('boiling', 'filled');
+            noodlesElement.classList.remove('in-pot', 'cooked', 'burnt');
+            bowlContent.style.opacity = '0'; // Clear the serving bowl content (visual only)
+
+            // Reset timers/steps
+            cookTimeElapsed = 0;
+            
+            // Reset interactions
+            potStove.onclick = null;
+            ramenBowl.onclick = null;
+            
+            // Go back to step 1 (Add Water)
+            updateStepStatus(1, '準備下一碗！第一步：將水壺拖曳到鍋子裡加水！', 'info');
+        }
+
+        function startGame() {
+            if (gameStatus !== 'IDLE' && gameStatus !== 'GAME_OVER') return;
+
+            // Reset State
+            gameStatus = 'COOKING';
+            totalTimeElapsed = 0;
+            totalScore = 0; // Reset total score for a new game
+            
+            // Reset Pot and UI
+            resetPotForNextRamen(); // Start at step 1
+            
+            startButton.classList.add('hidden');
+            feedbackModal.classList.add('hidden');
+            timerDisplay.textContent = `時間: ${TOTAL_TIME_LIMIT.toFixed(1)}s`;
+            scoreDisplay.textContent = `得分: 0`;
+
+            timerInterval = setInterval(gameLoop, 100);
+        }
+
+        function gameLoop() {
+            totalTimeElapsed += 0.1;
+            const remainingTime = TOTAL_TIME_LIMIT - totalTimeElapsed;
+            timerDisplay.textContent = `時間: ${remainingTime.toFixed(1)}s`;
+
+            // Cooking timer only runs after seasoning is added
+            if (gameStatus === 'COOKING' && currentStep >= 4) {
+                cookTimeElapsed += 0.1;
+                
+                // 增加煮麵視覺回饋
+                noodlesElement.classList.remove('burnt');
+                if (cookTimeElapsed >= COOK_TIME_IDEAL - 2 && cookTimeElapsed < COOK_TIME_MAX) {
+                    noodlesElement.classList.add('cooked');
+                } else if (cookTimeElapsed < COOK_TIME_IDEAL - 2) {
+                    noodlesElement.classList.remove('cooked');
+                }
+
+                // Check for burning/overcooking
+                if (cookTimeElapsed > COOK_TIME_MAX) {
+                    noodlesElement.classList.add('burnt');
+                    handleServeOrError('burn'); // Handle error but continue game
+                    return;
+                }
+            }
+
+            // Check for overall time out - END GAME
+            if (remainingTime <= 0.01) {
+                clearInterval(timerInterval);
+                endGame('timeout');
+                return;
+            }
+        }
+
+        function addWater() {
+            if (currentStep === 1) {
+                // Step 1: Add Water
+                waterElement.classList.add('filled');
+                updateStepStatus(2, '水加好了！現在點擊鍋子開啟爐火煮水！', 'success');
+                potStove.onclick = startBoiling; // Enable click to boil
+            } else {
+                handleServeOrError('wrong_order');
+            }
+        }
+
+        function startBoiling() {
+            if (currentStep === 2) {
+                // Step 2: Start Boiling
+                fireElement.classList.add('on');
+                waterElement.classList.add('boiling');
+                updateStepStatus(3, '水滾了！快把泡麵拖曳到鍋子裡！', 'success'); 
+                potStove.onclick = null; // Disable click after boiling starts
+            } else {
+                 showNotification('錯誤操作！水已經在煮了。', -10);
+            }
+        }
+
+        function addNoodles() {
+            if (currentStep === 3) {
+                // Step 3: Add Noodles
+                noodlesElement.classList.add('in-pot');
+                updateStepStatus(4, `泡麵下鍋！接著把調味粉拖曳加入，就會開始計時。`, 'success'); 
+            } else {
+                handleServeOrError('wrong_order');
+            }
+        }
+
+        function addSeasoning() {
+            if (currentStep === 4) {
+                // Step 4: Add Seasoning (Cooking time starts now)
+                updateStepStatus(5, `調味粉好了！麵條煮到 ${COOK_TIME_IDEAL} 秒口感最佳，請耐心等待...點擊碗公上菜！`, 'info');
+                ramenBowl.onclick = serveRamen;
+            } else {
+                handleServeOrError('wrong_order');
+            }
+        }
+
+        function serveRamen() {
+            if (currentStep >= 5) {
+                handleServeOrError('serve');
+            } else {
+                handleServeOrError('wrong_order');
+            }
+        }
+
+        function handleServeOrError(reason) {
+            let message, bowlScore = 0;
+
+            if (reason === 'serve') {
+                const timeDiff = Math.abs(cookTimeElapsed - COOK_TIME_IDEAL);
+                const baseScore = 100;
+                let timePenalty = 0;
+
+                if (timeDiff <= 1) {
+                    message = `完美！+${baseScore} 分，口感絕佳！`;
+                    bowlScore = baseScore;
+                } else if (timeDiff <= 3) {
+                    timePenalty = Math.round(timeDiff * 10);
+                    message = `不錯喔！+${baseScore - timePenalty} 分，味道還可以。`;
+                    bowlScore = Math.max(0, baseScore - timePenalty);
+                } else {
+                    timePenalty = Math.round(timeDiff * 20);
+                    message = `糟了... 煮太久！扣 ${timePenalty} 分，口感不佳。`;
+                    bowlScore = Math.max(-100, -timePenalty); 
+                }
+                bowlContent.style.opacity = '1';
+                
+            } else if (reason === 'wrong_order') {
+                message = '大失敗！操作步驟錯誤，扣 50 分！';
+                bowlScore = -50;
+            } else if (reason === 'burn') {
+                message = '燒焦了！煮太久，扣 100 分！';
+                bowlScore = -100;
+            }
+            
+            // Add score/penalty to total score and reset pot
+            totalScore += bowlScore;
+            showNotification(message, bowlScore);
+            scoreDisplay.textContent = `得分: ${totalScore}`;
+            resetPotForNextRamen();
+        }
+
+        function endGame(reason) {
+            gameStatus = 'GAME_OVER';
+            
+            let title;
+            let finalMessage;
+            if (reason === 'timeout') {
+                title = '時間到！挑戰結束！';
+                finalMessage = `你在 ${TOTAL_TIME_LIMIT} 秒內成功挑戰了多碗泡麵！`;
+            } else {
+                title = '遊戲結束';
+                finalMessage = `遊戲已結束。`;
+            }
+
+            showModal(title, finalMessage, totalScore);
+            startButton.classList.remove('hidden');
+            startButton.textContent = '再來一次';
+        }
+
+        function showModal(title, message, score) {
+            modalMessage.innerHTML = `<h3 class="text-xl font-bold mb-2">${title}</h3><p class="mb-4">${message}</p>`;
+            modalScore.textContent = `最終總得分: ${score}`; // 顯示最終總得分
+            feedbackModal.classList.remove('hidden');
+        }
+
+        function showNotification(message, score) {
+            const notification = document.createElement('div');
+            notification.className = `fixed top-20 left-1/2 transform -translate-x-1/2 z-50 p-3 rounded-lg shadow-xl text-white font-bold transition-opacity duration-300 ${score >= 0 ? 'bg-green-500' : 'bg-red-500'}`;
+            notification.textContent = `${message}`;
+            document.body.appendChild(notification);
+            
+            // Hide and remove after a short time
+            setTimeout(() => {
+                notification.style.opacity = '0';
+            }, 1500);
+            setTimeout(() => {
+                notification.remove();
+            }, 2000);
+        }
+
+        // --- Initialization ---
+
+        window.onload = () => {
+            initFirebase();
+            setupDragAndDrop(); // Set up drag and drop listeners once
+            
+            // 修正錯誤：以程式碼方式綁定按鈕點擊事件，避免 ReferenceError
+            const startBtn = document.getElementById('start-game-btn');
+            if (startBtn) {
+                startBtn.addEventListener('click', startGame);
+            }
+            
+            startGame(); // Start the first game automatically
+        };
+    </script>
+</head>
+<body class="p-4 bg-gray-50">
+
+    <div class="game-container">
+        <header class="p-6 bg-yellow-400 text-gray-900 border-b-4 border-yellow-600">
+            <h1 class="text-3xl font-extrabold text-center">🍜 阿Sue泡麵大挑戰 🍜 (快手版)</h1>
+            <p id="user-id-display" class="text-xs text-center mt-1 opacity-70">User ID: N/A</p>
+        </header>
+
+        <!-- 遊戲狀態與得分區塊 -->
+        <div class="p-4 flex justify-between items-center bg-gray-100 border-b">
+            <div id="timer-display" class="text-lg font-bold text-red-600 bg-white p-2 rounded-lg shadow">時間: 60.0s</div>
+            <div id="score-display" class="text-lg font-bold text-blue-600 bg-white p-2 rounded-lg shadow">得分: 0</div>
+        </div>
+
+        <!-- 狀態訊息 -->
+        <div id="status-message" class="p-3 font-semibold rounded-lg text-center bg-blue-100 text-blue-700">
+            點擊「開始遊戲」按鈕
+        </div>
+
+        <!-- 廚房操作區塊 -->
+        <div class="kitchen-area">
+            <!-- 牆面 -->
+            <div class="kitchen-wall"></div>
+
+            <!-- 爐灶與鍋子 (絕對定位在牆面與檯面交界處) -->
+            <div class="pot-on-stove" id="pot-on-stove">
+                <div class="stove">
+                    <div class="burner"></div>
+                    <div id="fire-element" class="fire"></div>
+                </div>
+                <div class="pot">
+                    <div class="pot-handle pot-handle-left"></div>
+                    <div class="pot-handle pot-handle-right"></div>
+                    <!-- 水位從 0 開始，使用 filled 類別填滿 -->
+                    <div id="water-element" class="water"></div> 
+                    <div id="noodles-element" class="noodles"></div>
+                </div>
+            </div>
+            
+            <!-- 檯面 (包含所有可拖曳道具和碗公) -->
+            <div class="kitchen-counter">
+                <!-- 左側道具區 (水壺, 調味粉) -->
+                <div class="flex flex-col space-y-4">
+                    <!-- 水壺 - 可拖曳 -->
+                    <div id="water-kettle" class="tool disabled" draggable="true">
+                        <!-- 具體水壺樣式：簡單的 SVG 或 emoji 圖示 -->
+                        <div class="w-16 h-16 bg-gray-400 border-2 border-gray-600 rounded-lg flex items-center justify-center shadow-lg">
+                            <span class="text-3xl" title="水壺">🫖</span> 
+                        </div>
+                        <span class="mt-2 text-sm font-semibold text-white text-shadow">水壺</span>
+                    </div>
+                    
+                    <!-- 調味包 - 可拖曳 -->
+                    <div id="seasoning-packet" class="tool disabled" draggable="true">
+                        <div class="w-16 h-16 bg-red-200 border-2 border-red-500 rounded-lg flex items-center justify-center shadow-lg">
+                            <span class="text-2xl" title="調味包">🧂</span>
+                        </div>
+                        <span class="mt-2 text-sm font-semibold text-white text-shadow">調味粉</span>
+                    </div>
+                </div>
+
+                <!-- 右側道具區 (泡麵, 碗公) -->
+                <div class="flex flex-col space-y-4">
+                    <!-- 泡麵包 - 可拖曳 -->
+                    <div id="noodle-packet" class="tool disabled" draggable="true">
+                        <div class="w-16 h-16 bg-yellow-200 border-2 border-yellow-500 rounded-lg flex items-center justify-center shadow-lg">
+                            <span class="text-2xl" title="泡麵包">📦</span>
+                        </div>
+                        <span class="mt-2 text-sm font-semibold text-white text-shadow">泡麵</span>
+                    </div>
+                    
+                    <!-- 碗公 (上菜區) - 點擊 -->
+                    <div id="ramen-bowl-area" class="tool">
+                        <div id="ramen-bowl" class="ramen-bowl disabled" onclick="serveRamen()">
+                            <div id="bowl-content" class="ramen-bowl-content"></div>
+                            <!-- SVG for simple bowl shape -->
+                            <svg class="absolute top-0 left-0 w-full h-full" viewBox="0 0 120 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M5 10 C 20 50, 100 50, 115 10 L 115 80 H 5 L 5 10 Z" fill="white" stroke="#f97316" stroke-width="4"/>
+                            </svg>
+                        </div>
+                        <span class="mt-2 text-sm font-semibold text-white text-shadow">碗公 (上菜)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 按鈕區塊 -->
+        <div class="p-6 bg-gray-200 flex justify-center">
+            <button id="start-game-btn"
+                    class="px-8 py-3 bg-green-500 text-white font-bold text-xl rounded-full shadow-lg hover:bg-green-600 transition duration-150">
+                開始遊戲
+            </button>
+        </div>
+
+        <!-- 遊戲結果/反饋彈窗 -->
+        <div id="feedback-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white p-8 rounded-xl shadow-2xl text-center w-full max-w-sm transform transition-all duration-300 scale-100">
+                <div id="modal-message" class="text-gray-800">
+                    <!-- Message content injected here -->
+                </div>
+                <p id="modal-score" class="text-3xl font-extrabold text-orange-600 mt-4 mb-6">最終總得分: 0</p>
+                <button onclick="document.getElementById('feedback-modal').classList.add('hidden')"
+                        class="px-6 py-2 bg-yellow-500 text-white font-semibold rounded-lg hover:bg-yellow-600 transition duration-150">
+                    確定
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>
